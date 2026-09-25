@@ -1,0 +1,46 @@
+package views
+
+import (
+)
+
+// Shell is the layout every full page is wrapped in (head, nav, content)
+templ Shell(component templ.Component) {
+    <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+            <title>Datastar Template with Golang</title>
+
+            <!-- placeholder: put your icon at static/ -->
+            <link rel="icon" href="/static/favicon.png" />
+
+            <!-- Tailwind browser build, for development only (see README) -->
+            <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+            <!-- Datastar JS -->
+            <script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.4/bundles/datastar.js"></script>
+        </head>
+
+        <body class="min-h-screen bg-gray-50 text-gray-900 antialiased">
+            @nav()
+            <div id="content" class="mx-auto w-full max-w-4xl px-4 py-8">
+                @component
+            </div>
+        </body>
+    </html>
+}
+
+templ nav() {
+    <nav class="border-b border-gray-200 bg-white">
+        <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+            <div class="text-lg font-semibold"> <a href="/">Datastar Template</a></div>
+            <div class="flex flex-wrap gap-1">
+                <a href="/" class="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">Home</a>
+                <a href="/todos" class="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">Todo list</a>
+                <a href="/crypto" class="rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">Realtime crypto prices</a>
+            </div>
+        </div>
+    </nav>
+}

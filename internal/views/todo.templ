@@ -1,0 +1,114 @@
+package views
+
+import (
+    "fmt"
+
+    "github.com/naftulisinger/datastar-template/internal/db"
+)
+
+// TodoPageSignals is shared by both sides: rendered into data-signals below,
+// and read back in the handlers with datastar.ReadSignals.
+// the json tags are the signal names, so they have to match data-bind
+type TodoPageSignals struct {
+    // SearchParam is the search parameter for filtering todos
+    SearchParam string `json:"searchParam"`
+
+    // NewDescription is the description of the new todo to be created
+    NewDescription string `json:"description"`
+}
+
+templ TodoPage(todos []db.Todo) {
+    <div data-signals={templ.JSONString(TodoPageSignals{SearchParam: ""})} class="flex justify-center">
+        <div class="w-full max-w-lg space-y-4">
+            <h1 class="text-2xl font-bold">Todo List</h1>
+            // every @get sends all the signals along, so the handler gets searchParam for free
+            <input
+                type="text"
+                placeholder="Search todos..."
+                class="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                data-bind="searchParam"
+                data-on:input__debounce.200ms="@get('/todos-search')"
+            />
+            @newTodoForm()
+            @TodoList(todos)
+        </div>
+    </div>
+}
+
+// the id is how the handlers find this row again to patch or remove it
+templ TodoItem(todo db.Todo) {
+    <div
+        id={ fmt.Sprintf("todo-%d", todo.ID) }
+        class="flex items-center justify-between gap-3 border-b border-gray-100 px-4 py-2 last:border-b-0">
+
+        <div class="flex min-w-0 flex-1 items-center">
+            if todo.Completed {
+                <input
+                    data-on:change={ fmt.Sprintf("@put('/todos/%d/toggle')", todo.ID) }
+                    type="checkbox"
+                    class="mr-3 h-4 w-4 accent-blue-600"
+                    checked
+                />
+                <span class="truncate px-2 py-1 text-sm text-gray-400 line-through">{todo.Description}</span>
+            } else {
+                // the form is only here so contentType: 'form' has something to send,
+                // change fires on enter or when the input loses focus
+                <form id={ fmt.Sprintf("todo-form-%d", todo.ID) } class="flex flex-1 items-center">
+                    <input
+                        data-on:change={ fmt.Sprintf("@put('/todos/%d/toggle')", todo.ID) }
+                        type="checkbox"
+                        class="mr-3 h-4 w-4 accent-blue-600"
+                        autocomplete="off"
+                    />
+                    <input
+                        name="description"
+                        type="text"
+                        value={ todo.Description }
+                        class="w-full rounded px-2 py-1 text-sm hover:bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+                        data-on:change={ fmt.Sprintf("@put('/todos/%d/update', {contentType: 'form'})", todo.ID) }
+                        autocomplete="off"
+                    />
+                </form>
+            }
+        </div>
+        <button
+            class="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+            data-on:click={ fmt.Sprintf("@delete('/todos/%d')", todo.ID) }
+        >
+            Delete
+        </button>
+    </div>
+}
+
+templ TodoList(todos []db.Todo) {
+    <div id="todo-list-wrapper" class="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div class="border-b border-gray-200 bg-gray-50 px-4 py-2">
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Todo List</h2>
+        </div>
+        <div id="todo-list">
+            for _, todo := range todos {
+                @TodoItem(todo)
+            }
+        </div>
+    </div>
+}
+
+templ newTodoForm() {
+    <div class="rounded-lg border border-gray-200 bg-white p-4">
+        <h2 class="mb-2 text-sm font-semibold">Add New Todo</h2>
+        // clearing $description right away is fine, the request already took the value
+        <form data-on:submit="@post('/todos'); $description = ''" class="flex gap-2">
+            <input
+                type="text"
+                placeholder="New todo description..."
+                class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                data-bind="description"
+            />
+            <button
+                class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            >
+                Add Todo
+            </button>
+        </form>
+    </div>
+}

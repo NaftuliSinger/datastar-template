@@ -1,0 +1,90 @@
+package views
+
+import (
+    "fmt"
+    "strconv"
+    "strings"
+
+    "github.com/naftulisinger/datastar-template/internal/crypto"
+)
+
+// data-init opens the price stream as soon as the page loads,
+// the first render uses the latest snapshot so it isn't empty
+templ CryptoPage(snapshot map[string]crypto.Ticker) {
+    <div data-init="@get('/crypto-prices-stream')" class="space-y-6">
+        <h1 class="text-2xl font-bold">Realtime Crypto Prices</h1>
+        <div id="price-cards" class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            for _, product := range crypto.DefaultProducts {
+                @PriceCard(product, snapshot[product])
+            }
+        </div>
+    </div>
+}
+
+// PriceCard has a stable id per product, so the SSE handler can
+// patch a single card: views.PriceCard(t.ProductID, t)
+templ PriceCard(product string, t crypto.Ticker) {
+    <div id={ priceCardID(product) } class="rounded-lg border border-gray-200 bg-white p-4">
+        <div class="flex items-center justify-between mb-2">
+            <h2 class="text-lg font-semibold">{ assetSymbol(product) }</h2>
+            <span class="text-xs text-gray-500">{ product }</span>
+        </div>
+        if t.Price == "" {
+            <p class="animate-pulse text-2xl font-bold text-gray-300">Loading...</p>
+        } else {
+            <p class="text-2xl font-bold tabular-nums">{ formatUSD(t.Price) }</p>
+            if change, ok := change24h(t); ok {
+                <p class={ "mt-1 text-sm font-medium tabular-nums", templ.KV("text-green-600", change >= 0), templ.KV("text-red-600", change < 0) }>
+                    { fmt.Sprintf("%+.2f%%", change) } <span class="text-gray-500 font-normal">24h</span>
+                </p>
+            }
+            <div class="flex justify-between mt-3 pt-3 border-t border-gray-200 text-xs text-gray-500 tabular-nums">
+                <span>H { formatUSD(t.High24h) }</span>
+                <span>L { formatUSD(t.Low24h) }</span>
+            </div>
+        }
+    </div>
+}
+
+func priceCardID(product string) string {
+    return "price-" + product
+}
+
+// "BTC-USD" -> "BTC"
+func assetSymbol(product string) string {
+    symbol, _, _ := strings.Cut(product, "-")
+    return symbol
+}
+
+// percentage change since the price 24h ago
+func change24h(t crypto.Ticker) (float64, bool) {
+    price, err1 := strconv.ParseFloat(t.Price, 64)
+    open, err2 := strconv.ParseFloat(t.Open24h, 64)
+    if err1 != nil || err2 != nil || open == 0 {
+        return 0, false
+    }
+    return (price - open) / open * 100, true
+}
+
+// "85205.14" -> "$85,205.14", small prices like xrp keep 4 decimals
+func formatUSD(s string) string {
+    v, err := strconv.ParseFloat(s, 64)
+    if err != nil {
+        return "-"
+    }
+    decimals := 2
+    if v < 10 {
+        decimals = 4
+    }
+    whole, frac, _ := strings.Cut(strconv.FormatFloat(v, 'f', decimals, 64), ".")
+
+    // add thousands separators
+    var b strings.Builder
+    for i, r := range whole {
+        if i > 0 && (len(whole)-i)%3 == 0 {
+            b.WriteRune(',')
+        }
+        b.WriteRune(r)
+    }
+    return "$" + b.String() + "." + frac
+}
